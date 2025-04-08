@@ -1,0 +1,32 @@
+*.local
+.python-version
+pyproject.toml
+
+# Python
+*.pyc
+*.pyo
+__pycache__/
+venv/
+
+# uv
+.uv/
+.venv/
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+.runtimeconfig.json
+.firebase/
+
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+dist/
+build/
+node_modules/
+
+# As a failsafe
+.env
+service-account.json

@@ -1,0 +1,45 @@
+name: Deploy Python Firebase Functions
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (prod/staging)'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate
+        env:
+          SERVICE_ACCOUNT: ${{ inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
+        run: |
+          echo "$SERVICE_ACCOUNT" > service-account.json
+          gcloud auth activate-service-account --key-file=service-account.json
+
+      - name: Select Project
+        run: |
+          if [ "${{ inputs.environment }}" = "prod" ]; then
+            firebase use hello-wisdom-prod --non-interactive
+          else
+            firebase use hello-wisdom-staging --non-interactive
+          fi
+
+      - name: Deploy Functions
+        run: firebase deploy --only functions
