@@ -4,42 +4,87 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment (prod/staging)'
+        description: 'Environment to deploy to'
         required: true
         default: 'staging'
         type: choice
         options:
           - staging
           - prod
+      confirm_prod:
+        description: 'Type "yes" to confirm production deployment'
+        required: false
+        type: string
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
+      # Checkout the repository
       - uses: actions/checkout@v4
 
+      # Validate production deployment confirmation
+      - name: Validate production deployment
+        if: ${{ github.event.inputs.environment == 'prod' }}
+        run: |
+          if [[ "${{ github.event.inputs.confirm_prod }}" != "yes" ]]; then
+            echo "::error::Production deployment requires explicit confirmation. Please type 'yes' in the confirm_prod field."
+            exit 1
+          fi
+
+      # Set up Node.js for Firebase CLI installation
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
+      # Install Firebase CLI using npm
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      # Install uv package manager
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.4"
+
+      # Generate requirements.txt for Firebase Functions
+      - name: Generate requirements.txt
+        working-directory: functions
+        run: uv pip compile pyproject.toml -o requirements.txt
+
+      # Authenticate with GCP using service account credentials
       - name: Authenticate
         env:
-          SERVICE_ACCOUNT: ${{ inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
+          SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
         run: |
-          echo "$SERVICE_ACCOUNT" > service-account.json
+          echo "$SERVICE_ACCOUNT_JSON" > service-account.json
           gcloud auth activate-service-account --key-file=service-account.json
 
+      # Select the appropriate Firebase project based on environment input
       - name: Select Project
+        id: select_project
         run: |
-          if [ "${{ inputs.environment }}" = "prod" ]; then
-            firebase use hello-wisdom-prod --non-interactive
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
+            firebase use prod --non-interactive
           else
-            firebase use hello-wisdom-staging --non-interactive
+            firebase use staging --non-interactive
           fi
 
+      # Deploy Firebase function to selected project
       - name: Deploy Functions
         run: firebase deploy --only functions
+
+      - name: Post-deployment summary
+        if: success()
+        run: |
+          echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "* **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Branch/Ref**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+      # Cleanup sensitive credentials after deployment
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f service-account.json

@@ -1,12 +1,14 @@
 *.local
 .python-version
-pyproject.toml
 
 # Python
 *.pyc
 *.pyo
 __pycache__/
 venv/
+
+# pyproject.toml is the source of truth
+requirements.txt
 
 # uv
 .uv/
