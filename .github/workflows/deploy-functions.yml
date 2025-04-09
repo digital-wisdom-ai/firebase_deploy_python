@@ -54,7 +54,7 @@ jobs:
         working-directory: functions
         run: uv pip compile pyproject.toml -o requirements.txt
 
-      # Authenticate with GCP using service account credentials
+      # Authenticate using GCP service account credentials
       - name: Authenticate
         env:
           SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
@@ -62,8 +62,17 @@ jobs:
           echo "$SERVICE_ACCOUNT_JSON" > service-account.json
           gcloud auth activate-service-account --key-file=service-account.json
 
+      - name: Check Service Account Permissions (Debug)
+        run: |
+          gcloud config get-value account
+          gcloud auth list
+
+      - name: Verify Enabled APIs (Debug)
+        run: |
+          gcloud services list --enabled --project=${{ github.event.inputs.environment == 'prod' && secrets.FIREBASE_PROD_PROJECT_ID || secrets.FIREBASE_STAGING_PROJECT_ID }}
+
       # Select the appropriate Firebase project based on environment input
-      - name: Select Project
+      - name: Select Firebase Project
         id: select_project
         run: |
           if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
@@ -72,9 +81,10 @@ jobs:
             firebase use staging --non-interactive
           fi
 
-      # Deploy Firebase function to selected project
-      - name: Deploy Functions
-        run: firebase deploy --only functions
+      # Deploy Firebase Functions to the selected project
+      - name: Deploy Firebase Functions (Debug Mode)
+        # run: firebase deploy --only functions
+        run: firebase deploy --only functions --debug
 
       - name: Post-deployment summary
         if: success()
