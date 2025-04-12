@@ -10,7 +10,11 @@ app = Flask(__name__)
 def hello_dw():
     return "Hello, Digital Wisdom!"
 
-@https_fn.on_request(max_instances=1)
+@https_fn.on_request(
+    memory=512,
+    timeout_sec=60,
+    max_instances=1
+)
 def simple_function(req: https_fn.Request) -> https_fn.Response:
     with app.request_context(req.environ):
         return app.full_dispatch_request()

@@ -3,17 +3,7 @@
     {
       "source": "functions",
       "runtime": "python311",
-      "codebase": "default",
-      "entryPoint": "simple_function",
-      "memory": "256MB",
-      "timeoutSeconds": 60,
-      "ignore": [
-        "venv",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
+      "codebase": "default"
     }
   ],
   "emulators": {
