@@ -1,11 +1,11 @@
 # Deploy Python Firebase Functions with GitHub Actions
-This project contains a sample workflow for automating the deployment of a Python Firebase Function with GitHub Actions. The Firebase files and python code deploy a simple hello world function with Flask as a Firebase serverless Function.
+This project contains a sample workflow for automating the deployment of a Python Firebase Function with GitHub Actions. The Firebase files and Python code deploy a simple hello world function with Flask as a Firebase serverless Function. Note that Python 3.11 is the latest version supported by Python Firebase Functions v2 as of April 2025.
 
 # GitHub Actions Trigger
 The action is triggered from any push to the feature branch `add-deploy-workflow` or a manual trigger. The default for the feature branch is `staging`. The manual trigger allows the user to select a GitHub branch and Firebase alias `staging`/`prod`.
 
 # Python package manager
-The project uses `uv`, a modern package manager, but Firebase expects `pip`. This workflow installs `uv`, then generates a `requirements.txt` file from `uv` files. If you only use `pip`, you can remove these two steps.
+The project uses `uv`, a modern package manager, which creates a virtual environment named `.venv`. Firebase expects a virtual environment named `venv` with `pip` installed. We can use `uv` commands to do so. Note that we are running `uv sync` with the `--active` flag because we need to maintain two virtual environments: `venv` for Firebase and the default `.venv` for uv.
 
 # GCP Service Account
 Deployment depends upon a Google Cloud service account for authentication. Set this up in the GCP console by creating a dedicated service account for GitHub Actions. You'll need to do this for each Firebase project.
@@ -17,7 +17,7 @@ Roles:
 - Firebase Admin SDK Admin
 - Cloud Functions Admin
 - Service Account User
-Skip granting users access and click Done
+Skip granting users access and click Done.
 
 Alternatively, use `gcloud` CLI for each project:
 

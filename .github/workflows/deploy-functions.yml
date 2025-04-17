@@ -56,23 +56,18 @@ jobs:
         with:
           version: "0.6.4"
 
-      # Generate requirements.txt for Firebase Functions
-      - name: Generate requirements.txt
-        working-directory: functions
-        run: uv pip compile pyproject.toml -o requirements.txt
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies with pip
+      - name: Install Python 3.11 with uv
+        run: uv python install 3.11
+  
+      - name: Use uv to install dependencies in /functions/venv
         working-directory: functions
         run: |
-          python -m venv venv
+          uv venv venv --python 3.11
           source venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          uv pip install --upgrade pip
+          uv sync --active
+          uv pip freeze > requirements.txt
+          deactivate
 
       # Store key in the runner's environment variable to persist across steps
       - name: Authenticate with GCP service account key
