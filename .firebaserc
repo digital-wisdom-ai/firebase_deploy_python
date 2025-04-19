@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "hello-wisdom-staging",
+    "staging": "hello-wisdom-staging",
+    "prod": "hello-wisdom-prod"
+  },
+  "targets": {},
+  "etags": {}
+}
