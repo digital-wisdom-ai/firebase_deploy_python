@@ -1,0 +1,111 @@
+name: 'Deploy Firebase Python Resources'
+description: 'Deploy Python-based Firebase resources with environment selection'
+author: 'Digital Wisdom'
+
+branding:
+  icon: 'upload-cloud'
+  color: 'orange'
+
+inputs:
+  functions_dir:
+    description: 'Directory containing functions and pyproject.toml'
+    required: false
+    default: 'functions'
+  to_deploy:
+    description: 'Firebase resource to deploy (e.g. functions, hosting)'
+    required: false
+    default: 'functions'
+  environment:
+    description: 'Environment to deploy to'
+    required: true
+    type: choice
+    options:
+      - staging
+      - prod
+  service_account_json:
+    description: 'Firebase service account JSON'
+    required: true
+  project_id:
+    description: 'Firebase project ID'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js for Firebase CLI
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install Firebase CLI
+      shell: bash
+      run: |
+        npm install -g firebase-tools
+        firebase --version
+
+    - name: Install uv package manager
+      uses: astral-sh/setup-uv@v5
+
+    - name: Setup Python from pyproject.toml
+      shell: bash
+      run: |
+        cd ${{ inputs.functions_dir }}
+        uv sync
+        uv pip freeze > requirements.txt
+        ln -s .venv venv
+
+    - name: Authenticate with GCP service account key
+      shell: bash
+      run: |
+        echo "${{ inputs.service_account_json }}" > service-account.json
+        echo "GOOGLE_APPLICATION_CREDENTIALS=service-account.json" >> $GITHUB_ENV
+
+    - name: Authenticate GitHub Actions service account
+      shell: bash
+      run: |
+        gcloud auth activate-service-account --key-file=service-account.json
+
+    - name: Verify service account ADC (Debug)
+      shell: bash
+      run: |
+        gcloud config get-value account
+        gcloud auth list
+
+    - name: Verify Enabled APIs (Debug)
+      shell: bash
+      run: |
+        gcloud services list --enabled --project=${{ inputs.project_id }}
+
+    - name: List Firebase Projects (Debug Mode)
+      shell: bash
+      run: firebase projects:list --debug
+
+    - name: Verify Service Account IAM Policy (Debug)
+      shell: bash
+      run: |
+        echo "Verifying IAM policy for project: ${{ inputs.project_id }}"
+        gcloud projects get-iam-policy ${{ inputs.project_id }} --format=json
+
+    - name: Select Firebase Project
+      shell: bash
+      run: |
+        firebase use ${{ inputs.project_id }} --non-interactive
+
+    - name: Deploy Firebase Resources
+      shell: bash
+      run: |
+        firebase deploy --only ${{ inputs.to_deploy }} --debug
+
+    - name: Post-deployment summary
+      shell: bash
+      run: |
+        echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+        echo "* **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "* **Project**: ${{ inputs.project_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "* **Resources**: ${{ inputs.to_deploy }}" >> $GITHUB_STEP_SUMMARY
+        echo "* **Functions Directory**: ${{ inputs.functions_dir }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Cleanup credentials
+      if: always()
+      shell: bash
+      run: rm -f service-account.json

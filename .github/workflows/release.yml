@@ -1,0 +1,33 @@
+name: Release
+on:
+  push:
+    branches:
+      - prod
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Update major version tag when a new version is released
+      - uses: actions/checkout@v4
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Update major version tag
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          MAJOR_VERSION=v$(echo ${{ steps.release.outputs.major }})
+          git tag -fa $MAJOR_VERSION -m "Update major version tag to ${{ steps.release.outputs.tag_name }}"
+          git push origin $MAJOR_VERSION --force

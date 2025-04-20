@@ -1,65 +1,162 @@
-# Deploy Python Firebase Functions with GitHub Actions
-This project contains a sample workflow for automating the deployment of a Python Firebase Function with GitHub Actions. The Firebase files and Python code deploy a simple hello world function with Flask as a Firebase serverless Function. Note that Python 3.11 is the latest version supported by Python Firebase Functions v2 as of April 2025.
+# Deploy Firebase Python Functions
 
-# GitHub Actions Trigger
-The action is triggered from any push to the feature branch `add-deploy-workflow` or a manual trigger. The default for the feature branch is `staging`. The manual trigger allows the user to select a GitHub branch and Firebase alias `staging`/`prod`.
+A GitHub Action for deploying Python-based Firebase Cloud Functions. This repository serves as both the action implementation and a live example of its usage.
 
-# Python package manager
-The project uses `uv`, a modern package manager, which creates a virtual environment named `.venv`. Firebase expects a virtual environment named `venv` with `pip` installed. We can use `uv` commands to do so. Note that we are running `uv sync` with the `--active` flag because we need to maintain two virtual environments: `venv` for Firebase and the default `.venv` for uv.
+## Features
 
-# GCP Service Account
-Deployment depends upon a Google Cloud service account for authentication. Set this up in the GCP console by creating a dedicated service account for GitHub Actions. You'll need to do this for each Firebase project.
+- 🐍 Automatic Python version detection from pyproject.toml
+- 📦 Dependency management using UV package manager
+- 🔄 Environment-based deployments (staging/prod)
+- 🔐 Secure handling of service account credentials
+- 📝 Detailed deployment summaries
+- 🧪 Self-testing repository structure
 
-GCP console > IAM & Admin > Service Accounts > Create Service Account
-Name: github-actions-deploy-staging
-Description: Deploy to Firebase with GitHub Actions
-Roles:
-- Firebase Admin SDK Admin
-- Cloud Functions Admin
-- Service Account User
-Skip granting users access and click Done.
+## Repository Structure
 
-Alternatively, use `gcloud` CLI for each project:
+This repository is structured to serve two purposes:
 
-`gcloud config set project PROJECT_ID`
+1. Provide the composite action implementation
+2. Serve as a live example and test environment
 
-`gcloud iam service-accounts create github-actions-deploy \`
-`  --description="Deploy to Firebase project with GitHub Actions" \`
+```
+.
+├── action.yml           # The composite action definition
+├── .github/workflows/   # Contains workflow using the action
+│   └── deploy-functions.yml
+├── functions/          # Example Firebase Functions
+│   ├── main.py
+│   └── pyproject.toml
+└── README.md          # Documentation
+```
 
-`gcloud projects add-iam-policy-binding $(gcloud config get-value project) \`
-`  --member="serviceAccount:github-actions-deploy@$(gcloud config get-value project).iam.gserviceaccount.com" \`
-`  --role="roles/firebase.admin"`
+## Usage
 
-`gcloud projects add-iam-policy-binding $(gcloud config get-value project) \`
-`  --member="serviceAccount:github-actions-deploy@$(gcloud config get-value project).iam.gserviceaccount.com" \`
-`  --role="roles/cloudfunctions.admin"`
+The workflow in this repository (.github/workflows/deploy-functions.yml) demonstrates the recommended usage:
 
-`gcloud projects add-iam-policy-binding $(gcloud config get-value project) \`
-`  --member="serviceAccount:github-actions-deploy@$(gcloud config get-value project).iam.gserviceaccount.com" \`
-`  --role="roles/iam.serviceAccountUser"`
+```yaml
+name: Test & Deploy Python Functions
 
-`gcloud projects add-iam-policy-binding $(gcloud config get-value project) \`
-`  --member="serviceAccount:github-actions-deploy@$(gcloud config get-value project).iam.gserviceaccount.com" \`
-`  --role="roles/serviceusage.serviceUsageConsumer"`
+on:
+  push:
+    branches: [staging, prod]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, prod]
+        description: 'Environment to deploy to'
+        required: true
 
-`gcloud projects add-iam-policy-binding $(gcloud config get-value project) \`
-`  --member="serviceAccount:github-actions-deploy@$(gcloud config get-value project).iam.gserviceaccount.com" \`
-`  --role="roles/cloudruntimeconfig.admin"`
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-# GCP Authentication Keys
-Each Firebase project requires a service account key. Download keys from Google and remember to exclude them from version control.
+      - uses: ./ # Uses local action for testing
+        with:
+          environment: ${{ github.event_name == 'push' && github.ref_name || inputs.environment }}
+          service_account_json: ${{ secrets[format('FIREBASE_{0}_SERVICE_ACCOUNT', github.event_name == 'push' && github.ref_name || inputs.environment)] }}
+          project_id: ${{ vars[format('FIREBASE_{0}_PROJECT_ID', github.event_name == 'push' && github.ref_name || inputs.environment)] }}
+```
 
-Store the keys as secrets in your repo:
-GitHub repo → Settings → Secrets and variables → Actions
-FIREBASE_PROD_SERVICE_ACCOUNT
-FIREBASE_STAGING_SERVICE_ACCOUNT
+When using in your own repository, reference a specific version:
 
-Alternatively, use GitHub CLI:
-`gh secret set FIREBASE_STAGING_SERVICE_ACCOUNT --repo user/repo-name < key-staging.json`
-`gh secret set FIREBASE_PROD_SERVICE_ACCOUNT --repo user/repo-name < key-prod.json`
+```yaml
+- uses: digital-wisdom/deploy-firebase-python@v1
+  with:
+    functions_dir: 'src/functions' # Default is 'functions'
+    environment: staging
+    service_account_json: ${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
+    project_id: my-project-staging
+```
 
-# Firebase CLI
-It’s important to use the latest version of `firebase-tools`, which will automatically enable the correct APIs for the Python Firebase Function in the corresponding GCP project.
+## Inputs
 
-# Debugging and Credential Verification
-The steps labeled (Debug) are for debugging, verifying credentials, and checking settings, so they can be omitted. The `firebase deploy` command uses a `--debug` flag that isn't strictly necessary. The GitHub Actions workflow would run faster without the debugging steps and flags.
+| Input                  | Description                                       | Required | Default     |
+| ---------------------- | ------------------------------------------------- | -------- | ----------- |
+| `functions_dir`        | Directory containing functions and pyproject.toml | No       | `functions` |
+| `environment`          | Environment to deploy to (staging/prod)           | Yes      | N/A         |
+| `service_account_json` | Firebase service account JSON                     | Yes      | N/A         |
+| `project_id`           | Firebase project ID                               | Yes      | N/A         |
+
+## Prerequisites
+
+1. **Firebase Project Setup**
+
+   - Create Firebase projects for your environments
+   - Generate service account keys
+   - Store service account JSON in GitHub Secrets
+   - Store project IDs in GitHub Variables
+
+2. **Python Project Structure**
+   - Valid pyproject.toml in your functions directory
+   - Python version specified in requires-python
+   - Dependencies listed in project dependencies
+
+## Project Structure
+
+Your project should look something like this:
+
+```
+.
+├── .github
+│   └── workflows
+│       └── deploy.yml
+├── functions
+│   ├── main.py
+│   ├── pyproject.toml
+│   └── other_files.py
+└── firebase.json
+```
+
+## Environment Variables
+
+The action automatically sets up:
+
+- `GOOGLE_APPLICATION_CREDENTIALS`: Points to the service account file
+- Firebase project configuration via `firebase use`
+
+## Security
+
+- Service account credentials are securely handled and cleaned up
+- Credentials file is automatically removed after deployment
+- Uses GitHub's secure token handling
+
+## Versioning
+
+This action follows semantic versioning. You can use it in three ways:
+
+- Major version: `@v1` - Recommended for stability
+  ```yaml
+  - uses: digital-wisdom/deploy-firebase-python@v1
+  ```
+- Specific version: `@v1.0.0` - Pinned to exact version
+  ```yaml
+  - uses: digital-wisdom/deploy-firebase-python@v1.0.0
+  ```
+- Branch: `@main` - Latest changes (not recommended for production)
+  ```yaml
+  - uses: digital-wisdom/deploy-firebase-python@main
+  ```
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages:
+
+   - `feat: add new feature`
+   - `fix: resolve bug`
+   - `docs: update documentation`
+   - `chore: maintenance tasks`
+
+2. Changes will automatically:
+   - Generate release notes
+   - Update the changelog
+   - Create a new version
+   - Update major version tag
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
