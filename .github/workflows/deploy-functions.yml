@@ -44,10 +44,18 @@ jobs:
         id: prepare
         run: |
           if [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
-            echo "service_account_b64=$(echo '${{ secrets.FIREBASE_PROD_SERVICE_ACCOUNT }}' | base64)" >> $GITHUB_OUTPUT
+            sa_json="${{ secrets.FIREBASE_PROD_SERVICE_ACCOUNT }}"
           else
-            echo "service_account_b64=$(echo '${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}' | base64)" >> $GITHUB_OUTPUT
+            sa_json="${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}"
           fi
+
+          if [[ -z "$sa_json" ]]; then
+            echo "::error::Missing service account secret"
+            exit 1
+          fi
+
+          service_account_b64=$(printf '%s' "$sa_json" | base64 | tr -d '\n')
+          echo "service_account_b64=$service_account_b64" >> $GITHUB_OUTPUT
 
       - name: Deploy Firebase Functions
         uses: ./
