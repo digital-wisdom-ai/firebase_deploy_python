@@ -22,9 +22,6 @@ inputs:
     options:
       - staging
       - prod
-  service_account_json:
-    description: 'Firebase service account JSON'
-    required: true
   project_id:
     description: 'Firebase project ID'
     required: true
@@ -56,8 +53,10 @@ runs:
 
     - name: Authenticate with GCP service account key
       shell: bash
+      env:
+        SERVICE_ACCOUNT_JSON: ${{ inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
       run: |
-        echo "${{ inputs.service_account_json }}" > service-account.json
+        echo "$SERVICE_ACCOUNT_JSON" > service-account.json
         echo "GOOGLE_APPLICATION_CREDENTIALS=service-account.json" >> $GITHUB_ENV
 
     - name: Authenticate GitHub Actions service account

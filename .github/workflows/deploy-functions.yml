@@ -44,5 +44,4 @@ jobs:
         uses: ./
         with:
           environment: ${{ github.event.inputs.environment }}
-          service_account_json: ${{ github.event.inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
           project_id: ${{ github.event.inputs.environment == 'prod' && 'hello-wisdom-prod' || 'hello-wisdom-staging' }}

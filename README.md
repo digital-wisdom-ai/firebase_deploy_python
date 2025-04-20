@@ -56,7 +56,6 @@ jobs:
       - uses: ./ # Uses local action for testing
         with:
           environment: ${{ github.event_name == 'push' && github.ref_name || inputs.environment }}
-          service_account_json: ${{ secrets[format('FIREBASE_{0}_SERVICE_ACCOUNT', github.event_name == 'push' && github.ref_name || inputs.environment)] }}
           project_id: ${{ vars[format('FIREBASE_{0}_PROJECT_ID', github.event_name == 'push' && github.ref_name || inputs.environment)] }}
 ```
 
@@ -67,18 +66,21 @@ When using in your own repository, reference a specific version:
   with:
     functions_dir: 'src/functions' # Default is 'functions'
     environment: staging
-    service_account_json: ${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
     project_id: my-project-staging
 ```
 
+Note: The action requires the following secrets to be defined in your repository:
+
+- `FIREBASE_STAGING_SERVICE_ACCOUNT`: Service account JSON for staging environment
+- `FIREBASE_PROD_SERVICE_ACCOUNT`: Service account JSON for production environment
+
 ## Inputs
 
-| Input                  | Description                                       | Required | Default     |
-| ---------------------- | ------------------------------------------------- | -------- | ----------- |
-| `functions_dir`        | Directory containing functions and pyproject.toml | No       | `functions` |
-| `environment`          | Environment to deploy to (staging/prod)           | Yes      | N/A         |
-| `service_account_json` | Firebase service account JSON                     | Yes      | N/A         |
-| `project_id`           | Firebase project ID                               | Yes      | N/A         |
+| Input           | Description                                       | Required | Default     |
+| --------------- | ------------------------------------------------- | -------- | ----------- |
+| `functions_dir` | Directory containing functions and pyproject.toml | No       | `functions` |
+| `environment`   | Environment to deploy to (staging/prod)           | Yes      | N/A         |
+| `project_id`    | Firebase project ID                               | Yes      | N/A         |
 
 ## Prerequisites
 
