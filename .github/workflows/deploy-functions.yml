@@ -40,8 +40,17 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare service account
+        id: prepare
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
+            echo "service_account_b64=$(echo '${{ secrets.FIREBASE_PROD_SERVICE_ACCOUNT }}' | base64)" >> $GITHUB_OUTPUT
+          else
+            echo "service_account_b64=$(echo '${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}' | base64)" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy Firebase Functions
         uses: ./
         with:
-          environment: ${{ github.event.inputs.environment }}
           project_id: ${{ github.event.inputs.environment == 'prod' && 'hello-wisdom-prod' || 'hello-wisdom-staging' }}
+          service_account_json_b64: ${{ steps.prepare.outputs.service_account_b64 }}

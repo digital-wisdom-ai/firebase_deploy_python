@@ -15,15 +15,11 @@ inputs:
     description: 'Firebase resource to deploy (e.g. functions, hosting)'
     required: false
     default: 'functions'
-  environment:
-    description: 'Environment to deploy to'
-    required: true
-    type: choice
-    options:
-      - staging
-      - prod
   project_id:
     description: 'Firebase project ID'
+    required: true
+  service_account_json_b64:
+    description: 'Firebase service account JSON (base64 encoded)'
     required: true
 
 runs:
@@ -53,16 +49,11 @@ runs:
 
     - name: Authenticate with GCP service account key
       shell: bash
-      env:
-        SERVICE_ACCOUNT_JSON: ${{ inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
       run: |
-        echo "$SERVICE_ACCOUNT_JSON" > service-account.json
+        echo '${{ inputs.service_account_json_b64 }}' | base64 -d | jq '.' > service-account.json
         echo "GOOGLE_APPLICATION_CREDENTIALS=service-account.json" >> $GITHUB_ENV
-
-    - name: Authenticate GitHub Actions service account
-      shell: bash
-      run: |
         gcloud auth activate-service-account --key-file=service-account.json
+        rm -f service-account.json
 
     - name: Verify service account ADC (Debug)
       shell: bash
@@ -99,7 +90,6 @@ runs:
       shell: bash
       run: |
         echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
-        echo "* **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "* **Project**: ${{ inputs.project_id }}" >> $GITHUB_STEP_SUMMARY
         echo "* **Resources**: ${{ inputs.to_deploy }}" >> $GITHUB_STEP_SUMMARY
         echo "* **Functions Directory**: ${{ inputs.functions_dir }}" >> $GITHUB_STEP_SUMMARY
