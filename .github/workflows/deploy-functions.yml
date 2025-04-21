@@ -40,21 +40,25 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare service account
+      - name: Prepare service account key
         id: prepare
         run: |
           if [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
-            sa_json="${{ secrets.FIREBASE_PROD_SERVICE_ACCOUNT }}"
+            service_account_b64="${{ secrets.FIREBASE_PROD_SERVICE_ACCOUNT_B64 }}"
           else
-            sa_json="${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}"
+            service_account_b64="${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT_B64 }}"
           fi
 
-          if [[ -z "$sa_json" ]]; then
+          if [[ -z "$service_account_b64" ]]; then
             echo "::error::Missing service account secret"
             exit 1
           fi
 
-          service_account_b64=$(printf '%s' "$sa_json" | base64 | tr -d '\n')
+          if ! echo "$service_account_b64" | base64 --decode > /dev/null 2>&1; then
+            echo "::error::Service account secret is not valid base64. Please ensure it is base64-encoded before storing as a secret."
+            exit 1
+          fi
+
           echo "service_account_b64=$service_account_b64" >> $GITHUB_OUTPUT
 
       - name: Deploy Firebase Functions
