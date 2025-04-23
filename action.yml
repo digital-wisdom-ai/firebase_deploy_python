@@ -53,6 +53,7 @@ runs:
         echo '${{ inputs.service_account_json_b64 }}' | base64 -d | jq '.' > service-account.json
         echo "GOOGLE_APPLICATION_CREDENTIALS=service-account.json" >> $GITHUB_ENV
         gcloud auth activate-service-account --key-file=service-account.json
+        rm -f service-account.json
 
     - name: Verify service account ADC (Debug)
       shell: bash
