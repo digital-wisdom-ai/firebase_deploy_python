@@ -4,111 +4,36 @@ A GitHub Action for deploying Python-based Firebase Cloud Functions. This reposi
 
 ## Features
 
-- 🐍 Automatic Python version detection from pyproject.toml
-- 📦 Dependency management using UV package manager
-- 🔄 Environment-based deployments (staging/prod)
+- 🐍 Python dependency management from pyproject.toml
 - 🔐 Secure handling of service account credentials
-- 📝 Detailed deployment summaries
-- 🧪 Self-testing repository structure
-
-## Repository Structure
-
-This repository is structured to serve two purposes:
-
-1. Provide the composite action implementation
-2. Serve as a live example and test environment
-
-```
-.
-├── action.yml           # The composite action definition
-├── .github/workflows/   # Contains workflow using the action
-│   └── deploy-functions.yml
-├── functions/          # Example Firebase Functions
-│   ├── main.py
-│   └── pyproject.toml
-└── README.md          # Documentation
-```
+- Detailed deployment summaries
 
 ## Usage
 
-The workflow in this repository (.github/workflows/deploy-functions.yml) demonstrates the recommended usage:
-
-```yaml
-name: Test & Deploy Python Functions
-
-on:
-  push:
-    branches: [staging, prod]
-  workflow_dispatch:
-    inputs:
-      environment:
-        type: choice
-        options: [staging, prod]
-        description: 'Environment to deploy to'
-        required: true
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./ # Uses local action for testing
-        with:
-          environment: ${{ github.event_name == 'push' && github.ref_name || inputs.environment }}
-          service_account_json: ${{ secrets[format('FIREBASE_{0}_SERVICE_ACCOUNT', github.event_name == 'push' && github.ref_name || inputs.environment)] }}
-          project_id: ${{ vars[format('FIREBASE_{0}_PROJECT_ID', github.event_name == 'push' && github.ref_name || inputs.environment)] }}
-```
-
-When using in your own repository, reference a specific version:
+Basic usage:
 
 ```yaml
 - uses: digital-wisdom/deploy-firebase-python@v1
   with:
-    functions_dir: 'src/functions' # Default is 'functions'
-    environment: staging
-    service_account_json: ${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
-    project_id: my-project-staging
+    project_id: my-firebase-project
+    service_account_json_b64: ${{ inputs.service_account_b64 }} # Must be base64 encoded
 ```
+
+The action requires the service account JSON to be base64 encoded. How you provide this encoded value is up to your workflow design.
 
 ## Inputs
 
-| Input                  | Description                                       | Required | Default     |
-| ---------------------- | ------------------------------------------------- | -------- | ----------- |
-| `functions_dir`        | Directory containing functions and pyproject.toml | No       | `functions` |
-| `environment`          | Environment to deploy to (staging/prod)           | Yes      | N/A         |
-| `service_account_json` | Firebase service account JSON                     | Yes      | N/A         |
-| `project_id`           | Firebase project ID                               | Yes      | N/A         |
+| Input                      | Description                                       | Required | Default     |
+| -------------------------- | ------------------------------------------------- | -------- | ----------- |
+| `functions_dir`            | Directory containing functions and pyproject.toml | No       | `functions` |
+| `to_deploy`                | Firebase resource to deploy (e.g. functions)      | No       | `functions` |
+| `project_id`               | Firebase project ID                               | Yes      | N/A         |
+| `service_account_json_b64` | Base64-encoded Firebase service account JSON      | Yes      | N/A         |
 
 ## Prerequisites
 
-1. **Firebase Project Setup**
-
-   - Create Firebase projects for your environments
-   - Generate service account keys
-   - Store service account JSON in GitHub Secrets
-   - Store project IDs in GitHub Variables
-
-2. **Python Project Structure**
-   - Valid pyproject.toml in your functions directory
-   - Python version specified in requires-python
-   - Dependencies listed in project dependencies
-
-## Project Structure
-
-Your project should look something like this:
-
-```
-.
-├── .github
-│   └── workflows
-│       └── deploy.yml
-├── functions
-│   ├── main.py
-│   ├── pyproject.toml
-│   └── other_files.py
-└── firebase.json
-```
+- Firebase service account key
+- Python project with pyproject.toml in functions directory
 
 ## Environment Variables
 
