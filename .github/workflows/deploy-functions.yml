@@ -26,6 +26,10 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  PROJECT_ID: ${{ github.event.inputs.environment == 'prod' && 'hello-wisdom-prod' || 'hello-wisdom-staging' }}
+  CREDENTIALS_JSON: ${{ github.event.inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -40,25 +44,8 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare service account
-        id: prepare
-        run: |
-          if [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
-            sa_json="${{ secrets.FIREBASE_PROD_SERVICE_ACCOUNT }}"
-          else
-            sa_json="${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}"
-          fi
-
-          if [[ -z "$sa_json" ]]; then
-            echo "::error::Missing service account secret"
-            exit 1
-          fi
-
-          service_account_b64=$(printf '%s' "$sa_json" | base64 | tr -d '\n')
-          echo "service_account_b64=$service_account_b64" >> $GITHUB_OUTPUT
-
       - name: Deploy Firebase Functions
         uses: ./
         with:
-          project_id: ${{ github.event.inputs.environment == 'prod' && 'hello-wisdom-prod' || 'hello-wisdom-staging' }}
-          service_account_json_b64: ${{ steps.prepare.outputs.service_account_b64 }}
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_json: ${{ env.CREDENTIALS_JSON }}
