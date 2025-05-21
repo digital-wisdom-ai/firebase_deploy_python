@@ -26,10 +26,13 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  PROJECT_ID: ${{ github.event.inputs.environment == 'prod' && 'hello-wisdom-prod' || 'hello-wisdom-staging' }}
+  CREDENTIALS_JSON: ${{ github.event.inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -41,87 +44,8 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Node.js for Firebase CLI
-        uses: actions/setup-node@v3
+      - name: Deploy Firebase Functions
+        uses: ./
         with:
-          node-version: '20'
-
-      - name: Install Firebase CLI
-        run: |
-          npm install -g firebase-tools
-          firebase --version
-
-      - name: Install uv package manager
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.6.4"
-
-      - name: Install Python 3.11 with uv
-        run: uv python install 3.11
-  
-      - name: Use uv to install dependencies in /functions/venv
-        working-directory: functions
-        run: |
-          uv venv venv --python 3.11
-          source venv/bin/activate
-          uv pip install --upgrade pip
-          uv sync --active
-          uv pip freeze > requirements.txt
-          deactivate
-
-      # Store key in the runner's environment variable to persist across steps
-      - name: Authenticate with GCP service account key
-        env:
-          SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.environment == 'prod' && secrets.FIREBASE_PROD_SERVICE_ACCOUNT || secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
-        run: |
-          echo "$SERVICE_ACCOUNT_JSON" > service-account.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=service-account.json" >> $GITHUB_ENV
-
-      - name: Authenticate GitHub Actions service account
-        run: |
-          gcloud auth activate-service-account --key-file=service-account.json
-
-      - name: Verify service account ADC (Debug)
-        run: |
-          gcloud config get-value account
-          gcloud auth list
-
-      - name: Verify Enabled APIs (Debug)
-        run: |
-          gcloud services list --enabled --project=${{ github.event.inputs.environment == 'prod' && 'hello-wisdom-prod' || 'hello-wisdom-staging' }}
-
-      - name: List Firebase Projects (Debug Mode)
-        run: firebase projects:list --debug
-
-      - name: Verify Service Account IAM Policy (Debug)
-        run: |
-          PROJECT_ID=${{ github.event.inputs.environment == 'prod' && 'hello-wisdom-prod' || 'hello-wisdom-staging' }}
-          echo "Verifying IAM policy for project: $PROJECT_ID"
-          gcloud projects get-iam-policy $PROJECT_ID --format=json
-
-      - name: Select Firebase Project
-        id: select_project
-        run: |
-          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
-            firebase use prod --non-interactive
-          else
-            firebase use staging --non-interactive
-          fi
-
-      - name: Deploy Firebase Functions (Debug Mode)
-        run: firebase deploy --only functions --debug
-
-      - name: Post-deployment summary
-        env:
-          ENVIRONMENT: ${{ github.event.inputs.environment }}
-          TRIGGER: ${{ github.event_name }}
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
-          echo "* **Environment**: $ENVIRONMENT" >> $GITHUB_STEP_SUMMARY
-          echo "* **Trigger**: $TRIGGER" >> $GITHUB_STEP_SUMMARY
-          echo "* **Branch/Ref**: $REF_NAME" >> $GITHUB_STEP_SUMMARY
-    
-      - name: Cleanup credentials
-        if: always()
-        run: rm -f service-account.json
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_json: ${{ env.CREDENTIALS_JSON }}
